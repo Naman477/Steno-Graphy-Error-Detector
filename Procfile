@@ -1,0 +1,1 @@
+web: java -jar target/stenography-error-detector-0.0.1-SNAPSHOT.jar
