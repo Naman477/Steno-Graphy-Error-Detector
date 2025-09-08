@@ -1,0 +1,5 @@
+com\stenography\errordetector\controller\AccuracyController.class
+com\stenography\errordetector\dto\AccuracyReport.class
+com\stenography\errordetector\StenographyErrorDetectorApplication.class
+com\stenography\errordetector\controller\WebController.class
+com\stenography\errordetector\service\AccuracyService.class
