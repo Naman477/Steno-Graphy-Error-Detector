@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stenography Error Detector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/grid.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <h1><i class="fas fa-typewriter"></i> Stenography Error Detector</h1>
+            <p class="tagline">Advanced text comparison and accuracy analysis</p>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <span id="welcomeMessage"></span>
+                <a href="/logout" class="btn btn-sm btn-secondary">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <!-- Login Form (shown when user is not logged in) -->
+            <div id="loginSection" class="card login-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-user"></i> User Login</h2>
+                    <p>Please log in to access the application</p>
+                </div>
+                <div class="card-body">
+                    <form id="loginForm" class="login-form">
+                        <div class="form-group">
+                            <label for="username"><i class="fas fa-user"></i> Username</label>
+                            <input type="text" id="username" name="username" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password"><i class="fas fa-lock"></i> Password</label>
+                            <input type="password" id="password" name="password" class="form-control" required>
+                        </div>
+                        <div class="form-group text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt"></i> Login
+                            </button>
+                        </div>
+                        <div class="dummy-users-info">
+                            <h4>Dummy Users:</h4>
+                            <ul>
+                                <li><strong>admin</strong> / admin123 (Administrator)</li>
+                                <li><strong>user1</strong> / password1 (John Doe)</li>
+                                <li><strong>user2</strong> / password2 (Jane Smith)</li>
+                                <li><strong>demo</strong> / demo123 (Demo User)</li>
+                            </ul>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Main Application (shown when user is logged in) -->
+            <div id="mainApp" style="display: none;">
+                <div class="card upload-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-file-upload"></i> Upload Documents</h2>
+                        <p>Upload your source and target documents for comparison</p>
+                    </div>
+                    <div class="card-body">
+                        <form id="accuracyForm" class="upload-form" method="POST" action="/api/v1/accuracy" enctype="multipart/form-data">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="sourceFile"><i class="fas fa-file-alt"></i> Source File</label>
+                                    <div class="file-upload-wrapper">
+                                        <input type="file" id="sourceFile" name="sourceFile" accept=".txt,.docx" required>
+                                        <label for="sourceFile" class="file-upload-label">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <span>Choose Source File</span>
+                                        </label>
+                                    </div>
+                                    <small class="form-text">The original, correct text</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="targetFile"><i class="fas fa-file-edit"></i> Target File</label>
+                                    <div class="file-upload-wrapper">
+                                        <input type="file" id="targetFile" name="targetFile" accept=".txt,.docx" required>
+                                        <label for="targetFile" class="file-upload-label">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <span>Choose Target File</span>
+                                        </label>
+                                    </div>
+                                    <small class="form-text">The text to be analyzed</small>
+                                </div>
+                            </div>
+                            <div class="form-group text-center">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-calculator"></i> Assess Accuracy
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="progressIndicator" class="progress-container" style="display: none;">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="spinner"></div>
+                            <h3>Analyzing Documents</h3>
+                            <p>Please wait while we process your files...</p>
+                            <div class="progress-bar">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="errorMessage" class="message error" style="display: none;">
+                    <div class="card">
+                        <div class="card-body">
+                            <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+                            <p id="errorMessageText"></p>
+                            <button id="closeError" class="btn btn-secondary"><i class="fas fa-times"></i> Close</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="results" class="results-section" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-chart-bar"></i> Accuracy Report</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="summary-stats">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="accuracy">0%</div>
+                                    <div class="stat-label">Accuracy</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="errorsFound">0</div>
+                                    <div class="stat-label">Errors Found</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="sourceTotalWords">0</div>
+                                    <div class="stat-label">Source Words</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="targetTotalWords">0</div>
+                                    <div class="stat-label">Target Words</div>
+                                </div>
+                            </div>
+
+                            <div class="detail-stats">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h3><i class="fas fa-info-circle"></i> Document Details</h3>
+                                        <ul class="stats-list">
+                                            <li>
+                                                <span class="stat-name">Source Characters:</span>
+                                                <span class="stat-value" id="sourceTotalChars">0</span>
+                                            </li>
+                                            <li>
+                                                <span class="stat-name">Target Characters:</span>
+                                                <span class="stat-value" id="targetTotalChars">0</span>
+                                            </li>
+                                            <li>
+                                                <span class="stat-name">Source Whitespaces:</span>
+                                                <span class="stat-value" id="sourceWhitespaceCount">0</span>
+                                            </li>
+                                            <li>
+                                                <span class="stat-name">Target Whitespaces:</span>
+                                                <span class="stat-value" id="targetWhitespaceCount">0</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h3><i class="fas fa-chart-pie"></i> Error Distribution</h3>
+                                        <div class="chart-container">
+                                            <canvas id="errorChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="categorizedErrors" class="categorized-errors" style="display: none;">
+                                <h3><i class="fas fa-exclamation-circle"></i> Categorized Error Report</h3>
+                                <div id="categorizedErrorsList" class="error-list"></div>
+                            </div>
+
+                            <div class="diff-display-container">
+                                <div class="diff-pane">
+                                    <div class="diff-pane-header">
+                                        <h3><i class="fas fa-file-alt"></i> Source Document</h3>
+                                        <button class="btn btn-sm btn-secondary toggle-fullscreen" data-target="source">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                    <div id="highlightedSource" class="document-content"></div>
+                                </div>
+                                <div class="diff-pane">
+                                    <div class="diff-pane-header">
+                                        <h3><i class="fas fa-file-edit"></i> Target Document</h3>
+                                        <button class="btn btn-sm btn-secondary toggle-fullscreen" data-target="target">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                    <div id="highlightedTarget" class="document-content"></div>
+                                </div>
+                            </div>
+
+                            <div class="actions">
+                                <button id="exportResults" class="btn btn-secondary">
+                                    <i class="fas fa-download"></i> Export Results
+                                </button>
+                                <button id="newComparison" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> New Comparison
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>&copy; 2025 Stenography Error Detector. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Add login functionality and check user status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is already logged in
+            fetch('/api/v1/user')
+            .then(response => response.json())
+            .then(data => {
+                if (data.username) {
+                    // User is logged in, show main app
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+                    document.getElementById('userInfo').style.display = 'block';
+                    document.getElementById('welcomeMessage').textContent = `Welcome, ${data.name} (${data.role})`;
+                } else {
+                    // User is not logged in, show login form
+                    document.getElementById('loginSection').style.display = 'block';
+                    document.getElementById('mainApp').style.display = 'none';
+                    document.getElementById('userInfo').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                // If there's an error, assume user is not logged in
+                document.getElementById('loginSection').style.display = 'block';
+                document.getElementById('mainApp').style.display = 'none';
+                document.getElementById('userInfo').style.display = 'none';
+            });
+
+            // Handle login form submission
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+                    
+                    fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Hide login section and show main app
+                            document.getElementById('loginSection').style.display = 'none';
+                            document.getElementById('mainApp').style.display = 'block';
+                            document.getElementById('userInfo').style.display = 'block';
+                            
+                            // Get user info and update welcome message
+                            fetch('/api/v1/user')
+                            .then(response => response.json())
+                            .then(userData => {
+                                document.getElementById('welcomeMessage').textContent = `Welcome, ${userData.name} (${userData.role})`;
+                            });
+                        } else {
+                            alert('Login failed: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Login failed: ' + error.message);
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

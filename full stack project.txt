@@ -1,0 +1,215 @@
+Project: Full Stack URL Shortener with Logging Middleware
+Ensure you've followed the instructions and registered provided in the Campus Hiring Evaluation - Pre-Test Setup document before starting.
+
+Part 1: General Submission Guidelines & Folder Structure
+Repository & Commits:
+
+Ensure that your Name, or any mention of Affordmed, is entirely absent from the Repository Name, the README file, and all commit messages.
+
+For each question, submit comprehensive solutions. This includes your architecture design, complete code and clear output screenshots. Incomplete submissions will not be considered for evaluation.
+
+We strongly encourage you to commit and push your code to GitHub regularly, at logical milestones in your development process. If you are using JavaScript or TypeScript, don't forget to add node_modules to your .gitignore file.
+
+Code Quality & Standards:
+
+Please adhere to production-grade coding standards. This includes employing proper naming conventions, maintaining a well-organised folder structure, and providing appropriate comments within your code to enhance readability. This is only an indicative list and you are encouraged to demonstrate other best practices that you are aware of.
+
+Technology Stack:
+
+Backend Track: For the Backend Track or the Backend question of Full Stack Track, select any Backend Framework without utilising external libraries for algorithms. Capture output screenshots from API clients like Insomnia or Postman, displaying the request body, response and response time for the problem. The output screenshots have to be taken of API calls to your app and not the test server.
+
+Frontend Track: For Frontend Track or the Frontend question of Full Stack Track, it is mandatory to use React or Next. While JavaScript is permitted, the use of TypeScript is preferred. Capture output screenshots of both mobile and desktop views of your web application. For styling, only Material UI or Vanilla CSS are permitted.
+
+Academic Integrity: Any instance of plagiarism, including using another applicant's API credentials, LLMs will lead to immediate rejection.
+
+Folder Structure:
+
+For Full Stack tracks, create 3 distinct folders inside the repository for the following:
+
+Logging Middleware
+
+Backend Test Submission
+
+Frontend Test Submission
+
+Part 2: Develop Logging Middleware
+The 'Logging Middleware' is a critical component for building robust and observable applications. While error logging is essential, we expect you to implement logging that captures the entire lifecycle of significant events within your application – from successful operations to warnings, informational messages, and debugging details. Think of logs as the narrative of your application's execution! These logs are crucial for understanding application behavior, performance, and for effective debugging.
+
+Note: While you have flexibility in choosing your backend language/framework, the Logging Middleware must be a reusable package. If attempting the Full Stack track, both this middleware and your backend application must be developed in TypeScript/JavaScript to enable the logging package's consumption by the Frontend.
+
+Task: Write a reusable function that makes an API call to the Test Server each time the function is called that matches the below structure:
+
+Log(stack, level, package, message)
+Integration: Integrate this reusable Log function strategically throughout your codebase. Each Log call should provide specific and descriptive context about what's happening. Instead of generic messages, aim for logs that clearly communicate the state, actions, and any relevant data at that point in the code.
+
+Example Usage:
+
+JavaScript
+
+// If an error occurs in your application's handler due to a data type mismatch
+Log("backend", "error", "handler", "received string, expected bool")
+
+// If an error occurs in your application's db layer
+Log("backend", "fatal", "db", "Critical database connection failure.")
+Log API Specification
+The test server has the below API that you can call in your Logging Middleware.
+
+Method: POST
+
+URL: http://20.244.56.144/evaluation-service/logs
+
+Constraints:
+
+API is a protected Route.
+
+Stack, Level and Package Fields accept only the following values (in lower case only).
+
+Allowed Field Values
+Stack:
+
+"backend"
+
+"frontend"
+
+Level:
+
+"debug"
+
+"info"
+
+"warn"
+
+"error"
+
+"fatal"
+
+Package (Backend Application only):
+
+"cache"
+
+"controller"
+
+"cron_job"
+
+"db"
+
+"domain"
+
+"handler"
+
+"repository"
+
+"route"
+
+"service"
+
+Package (Frontend Application only):
+
+"api"
+
+"component"
+
+"hook"
+
+"page"
+
+"state"
+
+"style"
+
+Package (Both Backend and Frontend):
+
+"auth"
+
+"config"
+
+"middleware"
+
+"utils"
+
+API Request & Response
+Request Body Example:
+
+JSON
+
+{
+  "stack": "backend",
+  "level": "error",
+  "package": "handler",
+  "message": "received string, expected bool"
+}
+Response (Status Code: 200) Example:
+
+JSON
+
+{
+  "logID": "a4aad02e-19d0-4153-86d9-58bf55d7c402",
+  "message": "log created successfully"
+}
+Part 3: Develop a HTTP URL Shortener Microservice (Backend)
+Develop a robust HTTP URL Shortener Microservice that provides core URL shortening functionality along with basic analytical capabilities.
+
+Requirements & Constraints
+Mandatory Logging Integration: Your app MUST extensively use the Logging Middleware created in Part 2. Use of inbuilt language loggers or console logging is not allowed.
+
+Microservice Architecture: Implement a single microservice for the specified API endpoints.
+
+Authentication: Assume users are pre-authorized. No user registration or login is required.
+
+Uniqueness & Defaults: All short links must be globally unique. Default validity for a link is 30 minutes if not specified.
+
+Custom Shortcodes & Generation: Support optional user-provided shortcodes (must be unique and valid). If not provided, generate a unique one automatically.
+
+Redirection: Accessing a short URL must redirect to the original long URL.
+
+Error Handling: Implement robust error handling with appropriate HTTP status codes and descriptive JSON responses.
+
+API Endpoints Specification
+1. Create Short URL
+
+Method: POST
+
+Route: /shorturls
+
+Request Body: url (string, required), validity (integer, optional), shortcode (string, optional).
+
+Response (201): shortLink (string), expiry (ISO 8601 string).
+
+2. Retrieve Short URL Statistics
+
+Method: GET
+
+Route: /shorturls/:shortcode
+
+Response: A JSON object with statistics: total clicks, original URL info (creation/expiry date), and detailed click data (timestamp, source/referrer, coarse-grained geographical location).
+
+Part 4: Develop a React URL Shortener Web App (Frontend)
+Develop a responsive React frontend that integrates with the backend microservice for URL shortening and analytics.
+
+Requirements & Constraints
+Mandatory Logging Integration: Your app MUST extensively use the Logging Middleware created in Part 2.
+
+Running Environment: Must run exclusively on http://localhost:3000.
+
+Integration: Must consume the backend APIs for all its functionalities. No business logic (shortening, stats) should be on the client-side.
+
+UI/UX: Prioritize a clean user experience. Use Material UI only for styling (or native CSS as a fallback).
+
+Application Pages
+1. URL Shortener Page
+
+Functionality: Allow users to shorten up to 5 URLs concurrently, providing the long URL, optional validity, and an optional shortcode for each.
+
+Validation: Implement client-side validation for user inputs before making API calls.
+
+Results: Display the resulting shortened links and their expiry dates clearly.
+
+2. URL Shortener Statistics Page
+
+Functionality: Display a list of all shortened URLs. For each URL, present:
+
+The short URL, its creation and expiry dates.
+
+Total number of clicks.
+
+Detailed click data: timestamp, source, and geographical location of each click.
