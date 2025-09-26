@@ -23,6 +23,7 @@ This is a Python implementation of the Stenography Error Detector web applicatio
 
 - Python 3.7 or higher
 - pip (Python package installer)
+- Tesseract OCR (see OCR_INSTALLATION.md for installation instructions)
 
 ## Installation
 
@@ -34,6 +35,8 @@ This is a Python implementation of the Stenography Error Detector web applicatio
 pip install -r requirements.txt
 ```
 
+4. Install Tesseract OCR (see OCR_INSTALLATION.md for instructions)
+
 ## How to Run
 
 1. Start the Flask application:
@@ -44,9 +47,9 @@ python app.py
 
 2. Open your web browser and go to `http://localhost:5000`
 
-## API Endpoint
+## API Endpoints
 
-The application exposes a single REST endpoint:
+### Document Comparison
 
 **POST /api/v1/accuracy**
 
@@ -54,17 +57,56 @@ This endpoint accepts `multipart/form-data` with two files:
 - `sourceFile`: The file containing the original, correct text.
 - `targetFile`: The file containing the text as typed by a user.
 
+### OCR Processing
+
+**POST /api/v1/ocr**
+
+This endpoint accepts `multipart/form-data` with one file:
+- `imageFile`: An image file containing text to be extracted (JPG, PNG, BMP, TIFF)
+
+Additional parameters:
+- `preprocess`: Preprocessing technique (basic, grayscale, threshold)
+
+### OCR-based Document Comparison
+
+**POST /api/v1/ocr-accuracy**
+
+This endpoint accepts `multipart/form-data` with two image files:
+- `sourceImageFile`: Image of the original, correct text.
+- `targetImageFile`: Image of the text as typed by a user.
+
+Additional parameters:
+- `sourcePreprocess`: Preprocessing technique for source image (basic, grayscale, threshold)
+- `targetPreprocess`: Preprocessing technique for target image (basic, grayscale, threshold)
+
 ### Request Example (using curl)
 
 ```bash
+# Text file comparison
 curl -X POST \
   http://localhost:5000/api/v1/accuracy \
   -H 'Content-Type: multipart/form-data' \
   -F 'sourceFile=@/path/to/your/source.txt' \
   -F 'targetFile=@/path/to/your/target.txt'
+
+# OCR processing
+curl -X POST \
+  http://localhost:5000/api/v1/ocr \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'imageFile=@/path/to/your/image.png' \
+  -F 'preprocess=grayscale'
+
+# OCR-based comparison
+curl -X POST \
+  http://localhost:5000/api/v1/ocr-accuracy \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'sourceImageFile=@/path/to/your/source.png' \
+  -F 'targetImageFile=@/path/to/your/target.png' \
+  -F 'sourcePreprocess=grayscale' \
+  -F 'targetPreprocess=grayscale'
 ```
 
-Replace `/path/to/your/source.txt` and `/path/to/your/target.txt` with the actual paths to your files.
+Replace `/path/to/your/` with the actual paths to your files.
 
 ### Response Example (JSON)
 
@@ -113,19 +155,23 @@ Replace `/path/to/your/source.txt` and `/path/to/your/target.txt` with the actua
   - Punctuation Errors
 - **Accuracy Calculation:** Uses the formula: `Accuracy = ((Total Words in Source - Errors) / Total Words in Source) * 100`.
 - **HTML Highlighting:** Generates HTML with highlighted errors for visual display.
+- **OCR Processing:** Extracts text from images using Tesseract OCR with preprocessing options.
+- **OCR-based Comparison:** Combines OCR and text comparison for image-based document analysis.
 
 ## Web Interface
 
 The application includes a web interface where users can:
-1. Upload source and target files
-2. Submit the files for analysis
-3. View the accuracy report with categorized errors
-4. See highlighted differences in both documents
+1. Upload source and target files (text or images)
+2. Select preprocessing options for OCR
+3. Submit the files for analysis
+4. View the accuracy report with categorized errors
+5. See highlighted differences in both documents
 
 ## Error Handling
 
 - **Missing/Empty Files:** Returns `400 Bad Request`.
 - **Internal Server Errors:** Returns `500 Internal Server Error` for unexpected issues during file processing.
+- **OCR Errors:** Returns specific error messages for Tesseract installation issues.
 
 ## Differences from Java Version
 
@@ -134,3 +180,5 @@ This Python implementation maintains the same core functionality as the Java/Spr
 - Uses Python's built-in `difflib` instead of `java-diff-utils`
 - Simplified project structure
 - Same REST API endpoints and response format
+- Added OCR functionality
+- Added OCR-based document comparison

@@ -1,14 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('accuracyForm');
+    const ocrForm = document.getElementById('ocrForm');
     const errorMessageDiv = document.getElementById('errorMessage');
     const errorMessageText = document.getElementById('errorMessageText');
     const closeErrorBtn = document.getElementById('closeError');
     const resultsDiv = document.getElementById('results');
+    const ocrResultsDiv = document.getElementById('ocrResults');
     const progressIndicator = document.getElementById('progressIndicator');
+    const ocrProgressIndicator = document.getElementById('ocrProgressIndicator');
     const progressBar = document.querySelector('.progress-fill');
     const newComparisonBtn = document.getElementById('newComparison');
     const exportResultsBtn = document.getElementById('exportResults');
     const fullscreenButtons = document.querySelectorAll('.toggle-fullscreen');
+    const copyExtractedTextBtn = document.getElementById('copyExtractedText');
+    const useForComparisonBtn = document.getElementById('useForComparison');
 
     // Close error message
     if (closeErrorBtn) {
@@ -30,6 +35,41 @@ document.addEventListener('DOMContentLoaded', () => {
     if (exportResultsBtn) {
         exportResultsBtn.addEventListener('click', () => {
             alert('Export functionality would be implemented here. In a real application, this would generate a PDF or CSV report.');
+        });
+    }
+
+    // Copy extracted text
+    if (copyExtractedTextBtn) {
+        copyExtractedTextBtn.addEventListener('click', () => {
+            const extractedText = document.getElementById('extractedText');
+            extractedText.select();
+            document.execCommand('copy');
+            alert('Text copied to clipboard!');
+        });
+    }
+
+    // Use extracted text for comparison
+    if (useForComparisonBtn) {
+        useForComparisonBtn.addEventListener('click', () => {
+            const extractedText = document.getElementById('extractedText').value;
+            if (extractedText.trim() !== '') {
+                // Create a Blob from the extracted text
+                const blob = new Blob([extractedText], { type: 'text/plain' });
+                const file = new File([blob], "ocr_extracted.txt", { type: "text/plain" });
+                
+                // Set the file as the target file for comparison
+                const targetFileInput = document.getElementById('targetFile');
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                targetFileInput.files = dataTransfer.files;
+                
+                // Scroll to the comparison section
+                document.querySelector('.upload-card').scrollIntoView({ behavior: 'smooth' });
+                
+                alert('Extracted text has been set as the target file for comparison!');
+            } else {
+                alert('No extracted text available!');
+            }
         });
     }
 
@@ -63,7 +103,228 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Form submission
+    // OCR Form submission
+    if (ocrForm) {
+        ocrForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            console.log('OCR Form submitted');
+
+            // Hide previous results and errors
+            errorMessageDiv.style.display = 'none';
+            ocrResultsDiv.style.display = 'none';
+
+            // Show OCR progress indicator
+            ocrProgressIndicator.style.display = 'block';
+
+            const formData = new FormData(ocrForm);
+
+            try {
+                const response = await fetch('/api/v1/ocr', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                ocrProgressIndicator.style.display = 'none';
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (response.status === 401) {
+                        throw new Error('Authentication required. Please log in first.');
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('OCR Result received:', result);
+
+                if (result.success) {
+                    // Update extracted text
+                    document.getElementById('extractedText').value = result.extractedText;
+
+                    // Show OCR results
+                    ocrResultsDiv.style.display = 'block';
+                    
+                    // Scroll to results
+                    ocrResultsDiv.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    throw new Error(result.error || 'OCR processing failed');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                ocrProgressIndicator.style.display = 'none';
+                
+                errorMessageText.textContent = `Error: ${error.message || 'An unexpected error occurred.'}`;
+                errorMessageDiv.style.display = 'block';
+            }
+        });
+    }
+
+    // Tab functionality for file upload methods
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    if (tabButtons.length > 0) {
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.getAttribute('data-tab');
+                
+                // Remove active class from all buttons and contents
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked button and corresponding content
+                button.classList.add('active');
+                document.querySelector(`.tab-content[data-tab="${tabName}"]`).classList.add('active');
+            });
+        });
+    }
+    
+    // Handle OCR-based accuracy form submission
+    const ocrAccuracyForm = document.getElementById('ocrAccuracyForm');
+    if (ocrAccuracyForm) {
+        ocrAccuracyForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            console.log('OCR Accuracy Form submitted');
+            
+            // Hide previous results and errors
+            errorMessageDiv.style.display = 'none';
+            resultsDiv.style.display = 'none';
+            
+            // Show progress indicator
+            progressIndicator.style.display = 'block';
+            progressBar.style.width = '30%';
+            
+            // Simulate progress
+            const progressInterval = setInterval(() => {
+                const currentWidth = parseInt(progressBar.style.width);
+                if (currentWidth < 90) {
+                    progressBar.style.width = (currentWidth + 10) + '%';
+                }
+            }, 300);
+            
+            const formData = new FormData(ocrAccuracyForm);
+            
+            try {
+                progressBar.style.width = '90%';
+                
+                const response = await fetch('/api/v1/ocr-accuracy', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (response.status === 401) {
+                        throw new Error('Authentication required. Please log in first.');
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                }
+                
+                const report = await response.json();
+                console.log('OCR Accuracy Report received:', report);
+                
+                // Update summary stats
+                document.getElementById('accuracy').textContent = report.accuracy ?? '0%';
+                document.getElementById('errorsFound').textContent = report.errorsFound ?? '0';
+                document.getElementById('sourceTotalWords').textContent = report.sourceTotalWords ?? '0';
+                document.getElementById('targetTotalWords').textContent = report.targetTotalWords ?? '0';
+                
+                // Update detail stats
+                document.getElementById('sourceTotalChars').textContent = report.sourceTotalChars ?? '0';
+                document.getElementById('targetTotalChars').textContent = report.targetTotalChars ?? '0';
+                document.getElementById('sourceWhitespaceCount').textContent = report.sourceWhitespaceCount ?? '0';
+                document.getElementById('targetWhitespaceCount').textContent = report.targetWhitespaceCount ?? '0';
+                
+                // Update document content
+                const highlightedSourceDiv = document.getElementById('highlightedSource');
+                const highlightedTargetDiv = document.getElementById('highlightedTarget');
+                
+                highlightedSourceDiv.innerHTML = report.highlightedSourceHtml && report.highlightedSourceHtml.trim() !== ''
+                    ? report.highlightedSourceHtml
+                    : '<em>No source content available.</em>';
+                highlightedTargetDiv.innerHTML = report.highlightedTargetHtml && report.highlightedTargetHtml.trim() !== ''
+                    ? report.highlightedTargetHtml
+                    : '<em>No target content available.</em>';
+                
+                // Update categorized errors
+                const categorizedErrorsList = document.getElementById('categorizedErrorsList');
+                categorizedErrorsList.innerHTML = ''; // Clear previous errors
+                
+                if (report.categorizedErrors && report.categorizedErrors.length > 0) {
+                    // Create error distribution data for chart
+                    const errorTypes = {};
+                    report.categorizedErrors.forEach(error => {
+                        errorTypes[error.errorType] = (errorTypes[error.errorType] || 0) + 1;
+                    });
+                    
+                    // Create chart
+                    createErrorChart(errorTypes);
+                    
+                    // Display errors
+                    report.categorizedErrors.forEach(error => {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'error-item';
+                        
+                        let iconClass = 'fa-exclamation-circle';
+                        let errorColor = '#dc2626';
+                        
+                        if (error.errorType === 'Whitespace Error') {
+                            iconClass = 'fa-text-width';
+                            errorColor = '#f59e0b';
+                        } else if (error.errorType === 'Punctuation Error') {
+                            iconClass = 'fa-pen';
+                            errorColor = '#8b5cf6';
+                        } else if (error.errorType === 'Missing Text') {
+                            iconClass = 'fa-minus-circle';
+                            errorColor = '#ef4444';
+                        } else if (error.errorType === 'Extra Text') {
+                            iconClass = 'fa-plus-circle';
+                            errorColor = '#3b82f6';
+                        }
+                        
+                        errorDiv.innerHTML = `
+                            <h4 style="color: ${errorColor};">
+                                <i class="fas ${iconClass}"></i> 
+                                Error #${error.errorNumber}: ${error.errorType}
+                            </h4>
+                            <div class="error-details">
+                                <p><strong>Source:</strong> ${error.inSource}</p>
+                                <p><strong>Target:</strong> ${error.inTarget}</p>
+                            </div>
+                        `;
+                        categorizedErrorsList.appendChild(errorDiv);
+                    });
+                    
+                    document.getElementById('categorizedErrors').style.display = 'block';
+                } else {
+                    document.getElementById('categorizedErrors').style.display = 'none';
+                }
+                
+                // Hide progress and show results
+                setTimeout(() => {
+                    progressIndicator.style.display = 'none';
+                    resultsDiv.style.display = 'block';
+                    
+                    // Scroll to results
+                    resultsDiv.scrollIntoView({ behavior: 'smooth' });
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                clearInterval(progressInterval);
+                progressIndicator.style.display = 'none';
+                
+                errorMessageText.textContent = `Error: ${error.message || 'An unexpected error occurred.'}`;
+                errorMessageDiv.style.display = 'block';
+            }
+        });
+    }
+
+    // Form submission (document comparison)
     if (form) {
         form.addEventListener('submit', async (event) => {
             event.preventDefault();

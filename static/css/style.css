@@ -410,6 +410,28 @@ body {
     color: var(--dark-color);
 }
 
+/* OCR Section */
+.ocr-card {
+    margin-bottom: 2rem;
+}
+
+.ocr-results-section {
+    margin-top: 2rem;
+}
+
+.ocr-results-section textarea {
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--border-radius);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    background: #f8fafc;
+    resize: vertical;
+    min-height: 200px;
+}
+
 /* Document Comparison */
 .diff-display-container {
     display: flex;
@@ -570,4 +592,47 @@ body {
         background: #334155;
         border-bottom-color: #475569;
     }
+}
+
+/* Tab Styles */
+.tabs {
+    display: flex;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-bottom: none;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--gray-color);
+    transition: var(--transition);
+    margin-right: 0.25rem;
+}
+
+.tab-button:hover {
+    background: #e2e8f0;
+}
+
+.tab-button.active {
+    background: white;
+    color: var(--primary-color);
+    border-bottom: 1px solid white;
+    margin-bottom: -1px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.mt-2 {
+    margin-top: 1rem;
 }

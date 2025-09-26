@@ -8,6 +8,12 @@ from datetime import datetime
 import webbrowser
 import threading
 import time
+import pytesseract
+from PIL import Image
+import tempfile
+
+# Set the path to tesseract executable
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -78,7 +84,13 @@ class AccuracyReport:
 
 def read_file_content(file):
     """Read file content and normalize line endings"""
-    content = file.read().decode('utf-8')
+    # Handle our temporary file objects
+    if hasattr(file, 'path'):
+        with open(file.path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    else:
+        content = file.read().decode('utf-8')
+    
     # Handle different line endings by normalizing to \n
     content = content.replace("\r\n", "\n").replace("\r", "\n")
     # Remove BOM if present
@@ -212,6 +224,55 @@ def escape_html(text):
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;"))
+
+def extract_text_from_image(image_file, preprocess_type="basic"):
+    """Perform OCR on an image file and return the extracted text with optional preprocessing"""
+    try:
+        # Save the image temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+            image_file.save(tmp_file.name)
+            tmp_filename = tmp_file.name
+        
+        # Open and process the image
+        image = Image.open(tmp_filename)
+        
+        # Apply different preprocessing techniques based on the requested type
+        if preprocess_type == "grayscale":
+            # Convert to grayscale for better OCR accuracy
+            if image.mode != 'L':
+                image = image.convert('L')
+        elif preprocess_type == "threshold":
+            # Convert to grayscale and apply threshold
+            if image.mode != 'L':
+                image = image.convert('L')
+            # Apply threshold to get rid of noise using a different approach
+            def threshold_func(x):
+                return 0 if x < 128 else 255
+            image = image.point(threshold_func)
+        elif preprocess_type == "basic":
+            # Basic preprocessing - just ensure it's in a good format
+            if image.mode not in ['L', 'RGB']:
+                image = image.convert('RGB')
+        
+        # Perform OCR with better configuration
+        # Different PSM (Page Segmentation Mode) options:
+        # --psm 6: Uniform block of text
+        # --psm 3: Fully automatic page segmentation, but no OSD
+        # --psm 1: Automatic page segmentation with OSD
+        custom_config = r'--oem 3 --psm 6'
+        text = pytesseract.image_to_string(image, config=custom_config)
+        
+        # Clean up temporary file
+        os.unlink(tmp_filename)
+        
+        return text
+    except Exception as e:
+        # Provide more specific error messages
+        error_msg = str(e)
+        if "tesseract is not installed" in error_msg.lower() or "not in your path" in error_msg.lower():
+            raise Exception("Tesseract OCR is not installed or not in your PATH. Please install Tesseract OCR and ensure it's in your system PATH. See OCR_INSTALLATION.md for instructions.")
+        else:
+            raise Exception(f"OCR processing failed: {error_msg}")
 
 def assess_typing_accuracy(source_file, target_file):
     """Main function to assess typing accuracy between two files"""
@@ -381,6 +442,148 @@ def get_user():
         })
     else:
         return jsonify({"error": "Not logged in"}), 401
+
+# Endpoint for OCR processing
+@app.route('/api/v1/ocr', methods=['POST'])
+def ocr_process():
+    # Check if user is logged in
+    if 'username' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Check if file is present
+    if 'imageFile' not in request.files:
+        return jsonify({"error": "Missing image file"}), 400
+    
+    image_file = request.files['imageFile']
+    
+    # Check if file is empty
+    if image_file.filename == '':
+        return jsonify({"error": "Empty file"}), 400
+    
+    # Get preprocessing option (default to "basic")
+    preprocess_type = request.form.get('preprocess', 'basic')
+    if preprocess_type not in ['basic', 'grayscale', 'threshold']:
+        preprocess_type = 'basic'
+    
+    try:
+        # Extract text from image using OCR with specified preprocessing
+        extracted_text = extract_text_from_image(image_file, preprocess_type)
+        
+        return jsonify({
+            "success": True,
+            "extractedText": extracted_text,
+            "message": "OCR processing completed successfully"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Endpoint for OCR-based accuracy assessment
+@app.route('/api/v1/ocr-accuracy', methods=['POST'])
+def ocr_accuracy_assessment():
+    # Check if user is logged in
+    if 'username' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Check if image files are present
+    if 'sourceImageFile' not in request.files or 'targetImageFile' not in request.files:
+        return jsonify({"error": "Missing image files"}), 400
+    
+    source_image_file = request.files['sourceImageFile']
+    target_image_file = request.files['targetImageFile']
+    
+    # Check if files are empty
+    if source_image_file.filename == '' or target_image_file.filename == '':
+        return jsonify({"error": "Empty files"}), 400
+    
+    try:
+        # Get preprocessing options
+        source_preprocess = request.form.get('sourcePreprocess', 'basic')
+        target_preprocess = request.form.get('targetPreprocess', 'basic')
+        
+        # Validate preprocessing options
+        if source_preprocess not in ['basic', 'grayscale', 'threshold']:
+            source_preprocess = 'basic'
+        if target_preprocess not in ['basic', 'grayscale', 'threshold']:
+            target_preprocess = 'basic'
+        
+        # Extract text from source image using OCR
+        source_text = extract_text_from_image(source_image_file, source_preprocess)
+        
+        # Extract text from target image using OCR
+        target_text = extract_text_from_image(target_image_file, target_preprocess)
+        
+        # Create temporary files to simulate file uploads for accuracy assessment
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.txt') as source_tmp:
+            source_tmp.write(source_text)
+            source_tmp_path = source_tmp.name
+        
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.txt') as target_tmp:
+            target_tmp.write(target_text)
+            target_tmp_path = target_tmp.name
+        
+        # Create file-like objects for accuracy assessment
+        class TempFile:
+            def __init__(self, path, filename):
+                self.path = path
+                self.filename = filename
+            
+            def read(self):
+                with open(self.path, 'rb') as f:
+                    return f.read()
+            
+            def seek(self, offset):
+                pass  # Not needed for our use case
+        
+        source_file_obj = TempFile(source_tmp_path, 'source.txt')
+        target_file_obj = TempFile(target_tmp_path, 'target.txt')
+        
+        # Assess accuracy using the existing function
+        report = assess_typing_accuracy(source_file_obj, target_file_obj)
+        
+        # Clean up temporary files
+        os.unlink(source_tmp_path)
+        os.unlink(target_tmp_path)
+        
+        # Add to comparison history
+        comparison_history.append({
+            "timestamp": report.timestamp,
+            "source_filename": f"OCR: {source_image_file.filename}",
+            "target_filename": f"OCR: {target_image_file.filename}",
+            "accuracy": report.accuracy,
+            "errors_found": report.errors_found,
+            "user": session.get('username', 'unknown')
+        })
+        
+        # Keep only the last 10 comparisons
+        if len(comparison_history) > 10:
+            comparison_history.pop(0)
+        
+        # Convert report to dictionary for JSON serialization
+        report_dict = {
+            "sourceWhitespaceCount": report.source_whitespace_count,
+            "targetWhitespaceCount": report.target_whitespace_count,
+            "sourceTotalChars": report.source_total_chars,
+            "targetTotalChars": report.target_total_chars,
+            "errorsFound": report.errors_found,
+            "accuracy": report.accuracy,
+            "differences": report.differences,
+            "highlightedSourceHtml": report.highlighted_source_html,
+            "highlightedTargetHtml": report.highlighted_target_html,
+            "diffOperations": [{"operation": op.operation, "text": op.text} for op in report.diff_operations],
+            "categorizedErrors": [{
+                "errorNumber": err.error_number,
+                "errorType": err.error_type,
+                "inSource": err.in_source,
+                "inTarget": err.in_target
+            } for err in report.categorized_errors],
+            "sourceTotalWords": report.source_total_words,
+            "targetTotalWords": report.target_total_words,
+            "timestamp": report.timestamp
+        }
+        
+        return jsonify(report_dict)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # Start a thread to open the browser
